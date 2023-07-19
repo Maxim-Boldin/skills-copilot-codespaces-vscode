@@ -1,74 +1,45 @@
 // Create a web server
-// Node.js
-// 1. Create a web server
-// 2. Handle HTTP route GET / and POST / i.e. Home
-// 3. Handle HTTP route GET /:username i.e. /chalkers
-// 4. Function that handles the reading of files and merge in values
-//    i.e. read from file and get a string
-//      merge values in to string
-var http = require('http');
-var fs = require('fs');
+// 1. Load the express module
+const express = require('express');
+const fs = require('fs');
+const bodyParser = require('body-parser');
+const cors = require('cors');
+const app = express();
+const port = 3000;
+const COMMENTS_FILE = './data/comments.json';
 
-function mergeValues(values, content) {
-  // Cycle over the keys
-  for (var key in values) {
-    // Replace all {{key}} with the value from the values object
-    content = content.replace('{{' + key + '}}', values[key]);
-  }
-  // return merged content
-  return content;
-}
+// 2. Use the static files
+app.use(express.static('public'));
+app.use(bodyParser.json());
+app.use(cors());
 
-function view(templateName, values, response) {
-  // Read from the template file
-  var fileContents = fs.readFileSync('./views/' + templateName + '.html', {encoding: 'utf8'});
-  // Insert values in to the content
-  fileContents = mergeValues(values, fileContents);
-  // Write out the contents to the response
-  response.write(fileContents);
-}
+// 3. Start the server
+app.listen(port, () => {
+  console.log(`Server listening on port ${port}`);
+});
 
-function post(request, response) {
-  var body = '';
-  request.on('data', function(postBody) {
-    body += postBody;
-  });
-  request.on('end', function() {
-    var post = qs.parse(body);
-    console.log(post);
-    response.writeHead(200, {"Content-Type": "text/plain"});
-    response.end("Success");
-  });
-}
-
-function renderPage(title, response) {
-  var values = {
-    title: title
-  };
-  view('header', values, response);
-  view('footer', values, response);
-}
-
-function home(request, response) {
-  if (request.url === '/') {
-    if (request.method.toLowerCase() === "get") {
-      response.writeHead(200, {'Content-Type': 'text/html'});
-      renderPage('Hello World', response);
-    } else {
-      post(request, response);
+// 4. Create the routes
+// GET /comments
+app.get('/comments', (req, res) => {
+  fs.readFile(COMMENTS_FILE, (err, data) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
     }
-  }
-}
 
-function user(request, response) {
-  var username = request.url.replace('/', '');
-  if (username.length > 0) {
-    response.writeHead(200, {'Content-Type': 'text/html'});
-    renderPage(username, response);
-  }
-}
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json(JSON.parse(data));
+  });
+});
 
-http.createServer(function(request, response) {
-  home(request, response);
-  user(request, response);
-}).listen(
+// POST /comments
+app.post('/comments', (req, res) => {
+  fs.readFile(COMMENTS_FILE, (err, data) => {
+    if (err) {
+      console.error(err);
+      process.exit(1);
+    }
+
+    const comments = JSON.parse(data);
+    const newComment = {
+      id: Date.now(),
